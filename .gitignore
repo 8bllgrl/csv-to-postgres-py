@@ -16,3 +16,7 @@ __pycache__/
 .hypothesis/
 .mypy_cache/
 .pytest_cache/
+
+
+rsrc/csv/eng/
+rsrc/csv/jp/
