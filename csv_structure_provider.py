@@ -6,6 +6,7 @@ class Config:
     ENG_DIR = None
     JP_DIR = None
     QUEST_DIR = "quest"
+    CUTSCENE_DIR = "cut_scene"
 
     @classmethod
     def initialize_language_base_directories(cls, base_dir):
@@ -48,7 +49,15 @@ def list_quest_files_for_eng(csv_directory):
     eng_quest_path = os.path.join(os.path.join(csv_directory, 'eng'), Config.QUEST_DIR)
     return list_csv_files_in_directory(eng_quest_path)
 
+def list_cutscene_files_for_eng(csv_directory):
+    eng_ct_path = os.path.join(os.path.join(csv_directory, 'eng'), Config.CUTSCENE_DIR)
+    return list_csv_files_in_directory(eng_ct_path)
+
 
 def list_quest_files_for_jp(csv_directory):
     jp_quest_path = os.path.join(os.path.join(csv_directory, 'jp'), Config.QUEST_DIR)
     return list_csv_files_in_directory(jp_quest_path)
+
+def list_cutscene_files_for_jp(csv_directory):
+    jp_ct_path = os.path.join(os.path.join(csv_directory, 'jp'), Config.CUTSCENE_DIR)
+    return list_csv_files_in_directory(jp_ct_path)

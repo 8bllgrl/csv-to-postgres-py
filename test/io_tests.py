@@ -14,6 +14,19 @@ class TestIO(unittest.TestCase):
         file_path = project_root / 'rsrc' / 'csv'   # Relative to the project root
         self.assertTrue(file_path.exists(), f"File {file_path} does not exist")
 
+        file_path = Path(r'C:\Users\sbelknap\PycharmProjects\dialogdbconn\rsrc\csv')
+        self.assertTrue(file_path.exists(), f"File {file_path} does not exist")
+
+        project_root = Path(__file__).resolve().parent.parent  # Adjust if necessary for deeper nested directories
+        file_path = project_root / 'rsrc' / 'csv' / 'eng' / 'cut_scene'  # Relative to the project root
+        self.assertTrue(file_path.exists(), f"File {file_path} does not exist")
+
+        project_root = Path(__file__).resolve().parent.parent  # Adjust if necessary for deeper nested directories
+        file_path = project_root / 'rsrc' / 'csv' / 'eng' / 'cut_scene' / '022'  # Relative to the project root
+        self.assertTrue(file_path.exists(), f"File {file_path} does not exist")
+
+
+
 
     def test_config_init(self):
         # base_dir = r'C:\Users\sbelknap\PycharmProjects\dialogdbconn\rsrc\csv'
@@ -41,7 +54,9 @@ class TestIO(unittest.TestCase):
 
         expected_files = [
             str(base_dir / 'eng' / 'quest' / '000' / 'ClsArc000_00021.csv'),
-            str(base_dir / 'jp' / 'quest' / '000' / 'ClsArc000_00021.csv')
+            str(base_dir / 'jp' / 'quest' / '000' / 'ClsArc000_00021.csv'),
+            str(base_dir / 'eng' / 'cut_scene' / '022' / 'VoiceMan_02200.csv'),
+            str(base_dir / 'jp' / 'cut_scene' / '022' / 'VoiceMan_02200.csv')
         ]
         result = list_csv_files_in_directory(str(project_root / 'rsrc'))
         for expected_file in expected_files:
