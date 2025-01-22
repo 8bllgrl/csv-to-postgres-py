@@ -18,5 +18,8 @@ __pycache__/
 .pytest_cache/
 
 
-rsrc/csv/eng/
-rsrc/csv/jp/
+rsrc/csv/eng/*
+!rsrc/csv/eng/README.txt
+
+rsrc/csv/jp/*
+!rsrc/csv/jp/README.txt
