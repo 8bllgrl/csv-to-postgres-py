@@ -6,17 +6,17 @@ import numpy as np
 from jptranslations_provider import is_japanese
 
 # CSV data types to PostgreSQL data types
-TYPE_MAP = {
-    "int32": "INTEGER",
-    "int64": "BIGINT",
-    "uint16": "SMALLINT",
-    "byte": "SMALLINT",  # PostgreSQL does not have a byte type, so using SMALLINT here instead..
-    "str": "VARCHAR",
-    "float32": "REAL",
-    "float64": "DOUBLE PRECISION",
-    "bool": "BOOLEAN",
-    "datetime": "TIMESTAMP"
-}
+# TYPE_MAP = {
+#     "int32": "INTEGER",
+#     "int64": "BIGINT",
+#     "uint16": "SMALLINT",
+#     "byte": "SMALLINT",  # PostgreSQL does not have a byte type, so using SMALLINT here instead..
+#     "str": "VARCHAR",
+#     "float32": "REAL",
+#     "float64": "DOUBLE PRECISION",
+#     "bool": "BOOLEAN",
+#     "datetime": "TIMESTAMP"
+# }
 
 
 def sanitize_column_name(col_name):
@@ -33,14 +33,15 @@ def sanitize_column_name(col_name):
 
 def map_data_type(csv_type):
     """Maps the data types from CSV to PostgreSQL"""
-    if isinstance(csv_type, int):
-        return 'INTEGER'
-    elif isinstance(csv_type, float):
-        return 'FLOAT'
-    elif isinstance(csv_type, str):
-        return 'TEXT'
-    else:
-        return 'TEXT'
+    # if isinstance(csv_type, int):
+    #     return 'INTEGER'
+    # elif isinstance(csv_type, float):
+    #     return 'FLOAT'
+    # elif isinstance(csv_type, str):
+    #     return 'TEXT'
+    # else:
+    #     return 'TEXT'
+    return 'TEXT'
 
 
 def create_table_from_df(df, table_name, conn):
@@ -207,7 +208,7 @@ def add_japanese_columns_if_needed(cursor, table_name, sanitized_columns, japane
             # ALTER TABLE statement to add the Japanese column
             alter_table_query = f"""
             ALTER TABLE "{table_name_lower}"
-            ADD COLUMN "{column_name_jp}" VARCHAR(255)
+            ADD COLUMN "{column_name_jp}" TEXT
             """
             print(f"\n  sql: {alter_table_query}")
 

@@ -1,84 +1,139 @@
-import os
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import numpy as np
-import pandas as pd
 import psycopg2
 from psycopg2.sql import SQL
 
 from database_provider import connect_to_db
-from sql_provider import create_table_from_df, insert_data_from_df
+from jptranslations_provider import is_japanese
+from sql_provider import create_table_from_df, insert_data_from_df, insert_data_from_df_with_japanese
+
+import os
+import pandas as pd
+import numpy as np
+
+
+def assert_table_data_has_japanese_text(table_name: str, connection):
+    assert connection is not None
+    assert isinstance(connection, psycopg2.extensions.connection)
+
+    cursor = connection.cursor()
+
+    try:
+        squery = f"SELECT * FROM {table_name} WHERE _key = '%s'"
+        cursor.execute(squery, (26,))
+        record = cursor.fetchone()
+
+        assert record is not None, f"Record with _key = 26 not found in table {table_name}."
+
+        column_3_value = record[2]
+        assert is_japanese(column_3_value), f"Column 3 value '{column_3_value}' does not contain Japanese text."
+
+        print(f"Record found and column 3 contains Japanese text in table '{table_name}'.")
+
+    except Exception as e:
+        print(f"Error occurred: {e}")
+    finally:
+        try:
+            connection.commit()
+        except psycopg2.Error as commit_error:
+            print(f"Error committing transaction: {commit_error}")
+
+        try:
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+            print(f"Table {table_name} dropped.")
+        except psycopg2.Error as drop_error:
+            print(f"Error dropping table {table_name}: {drop_error}")
+
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+        print("Connection closed.")
 
 
 def verify_and_compare_records(csv_file: str, expected_num_records: int, connection):
     if not os.path.exists(csv_file):
         raise FileNotFoundError(f"The CSV file {csv_file} does not exist!")
 
-    csvdf = pd.read_csv(csv_file)
     table_name = os.path.splitext(os.path.basename(str(csv_file)))[0]
 
-    create_table_from_df(csvdf, table_name, connection)
-    insert_data_from_df(csvdf, table_name, connection)
+    try:
+        csvdf = pd.read_csv(csv_file)
 
-    cursor = connection.cursor()
+        create_table_from_df(csvdf, table_name, connection)
+        insert_data_from_df(csvdf, table_name, connection)
 
-    squery = f"SELECT * FROM {table_name}"
-    cursor.execute(squery)
-    table_exists = cursor.fetchone()[0]
-    assert table_exists, f"Table {table_name} was not created successfully."
-    records = cursor.fetchall()
-    assert len(records) > 0, f"No records found in table {table_name}."
+        cursor = connection.cursor()
 
-    num_records = len(records)
-    num_columns = len(cursor.description) if cursor.description else 0
-    print(f"Table {table_name} has {num_records} records and {num_columns} columns.")
+        squery = f"SELECT * FROM {table_name}"
+        cursor.execute(squery)
+        table_exists = cursor.fetchone()[0]
+        assert table_exists, f"Table {table_name} was not created successfully."
 
-    assert num_records > 0, f"No records found in table {table_name}."
-    assert num_records == expected_num_records
-    assert num_columns == 3
+        records = cursor.fetchall()
+        assert len(records) > 0, f"No records found in table {table_name}."
 
-    squery = f"SELECT * FROM {table_name} WHERE _key = '%s'"
-    cursor.execute(squery, (26,))
-    record = cursor.fetchone()
-    assert record is not None, "Record with _key = 26 not found."
+        num_records = len(records)
+        num_columns = len(cursor.description) if cursor.description else 0
+        print(f"Table {table_name} has {num_records} records and {num_columns} columns.")
 
-    matching_rows = csvdf[csvdf['key'] == "26"]
-    assert len(matching_rows) > 0, "No record with _key = 26 found in the CSV."
+        assert num_records > 0, f"No records found in table {table_name}."
+        assert num_records == expected_num_records
+        assert num_columns == 3
 
-    csv_record = csvdf[csvdf['key'] == "26"].iloc[0]
+        squery = f"SELECT * FROM {table_name} WHERE _key = '%s'"
+        cursor.execute(squery, (26,))
+        record = cursor.fetchone()
+        assert record is not None, "Record with _key = 26 not found."
 
-    for column, value in zip(csvdf.columns, record):
-        csv_value = csv_record[column]
-        assert value == csv_value, f"Value mismatch in column '{column}': Database has '{value}', CSV has '{csv_value}'"
+        matching_rows = csvdf[csvdf['key'] == "26"]
+        assert len(matching_rows) > 0, "No record with _key = 26 found in the CSV."
 
-    print(f"Database record for _key=26: {record}")
-    print(f"CSV record for key=26: {csv_record.to_dict()}")
+        csv_record = csvdf[csvdf['key'] == "26"].iloc[0]
 
-    for idx, csv_record in csvdf.iterrows():
-        cursor.execute(f"SELECT * FROM {table_name} WHERE _key = %s", (str(csv_record['key']),))
-        db_record = cursor.fetchone()
+        for column, value in zip(csvdf.columns, record):
+            csv_value = csv_record[column]
+            assert value == csv_value, f"Value mismatch in column '{column}': Database has '{value}', CSV has '{csv_value}'"
 
-        assert db_record is not None, f"Record with _key = {csv_record['key']} not found in the database."
+        print(f"Database record for _key=26: {record}")
+        print(f"CSV record for key=26: {csv_record.to_dict()}")
 
-        for column in csvdf.columns:
-            csv_value = str(csv_record[column])  # Ensure it's a string
-            db_value = str(db_record[csvdf.columns.get_loc(column)])  # Convert to string for comparison
+        for idx, csv_record in csvdf.iterrows():
+            cursor.execute(f"SELECT * FROM {table_name} WHERE _key = %s", (str(csv_record['key']),))
+            db_record = cursor.fetchone()
 
-            # Handle NaN and nan comparison by converting them to np.nan
-            if csv_value.lower() == 'nan':
-                csv_value = np.nan
-            if db_value.lower() == 'nan':
-                db_value = np.nan
+            assert db_record is not None, f"Record with _key = {csv_record['key']} not found in the database."
 
-            # Check for NaN equality, because NaN != NaN, but np.isnan will return True for NaN comparisons
-            if pd.isna(csv_value) and pd.isna(db_value):
-                continue  # If both are NaN, consider it a match
-            else:
-                assert csv_value == db_value, f"Value mismatch in column '{column}' for _key = {csv_record['key']}: Database has '{db_value}', CSV has '{csv_value}'"
+            for column in csvdf.columns:
+                csv_value = str(csv_record[column])
+                db_value = str(db_record[csvdf.columns.get_loc(column)])
 
-    print(f"All records match between CSV and database for table '{table_name}'.")
+                if csv_value.lower() == 'nan':
+                    csv_value = np.nan
+                if db_value.lower() == 'nan':
+                    db_value = np.nan
+
+                if pd.isna(csv_value) and pd.isna(db_value):
+                    continue
+                else:
+                    assert csv_value == db_value, f"Value mismatch in column '{column}' for _key = {csv_record['key']}: Database has '{db_value}', CSV has '{csv_value}'"
+
+        print(f"All records match between CSV and database for table '{table_name}'.")
+        if cursor:
+            cursor.close()
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        if connection:
+            connection.close()
+    finally:
+        cursor = connection.cursor()
+        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        print(f"Table {table_name} dropped.")
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 
 class TestDatabase(unittest.TestCase):
@@ -91,7 +146,6 @@ class TestDatabase(unittest.TestCase):
         finally:
             if connection:
                 connection.close()
-
 
     def test_insert_eng_data_from_csv(self):
         project_root = Path(__file__).resolve().parent.parent
@@ -138,7 +192,7 @@ class TestDatabase(unittest.TestCase):
         records = mock_cursor.fetchall()
 
         mock_cursor.execute.assert_called()
-        assert records, f"No records found in the table {table_name}!"  # This will raise an AssertionError if records is empty
+        assert records, f"No records found in the table {table_name}!"
 
         print(f"Records fetched from {table_name}:")
         for record in records:
@@ -165,6 +219,57 @@ class TestDatabase(unittest.TestCase):
         csv_eng_file = str(base_dir / 'eng' / 'cut_scene' / '022' / 'VoiceMan_02200.csv')
 
         verify_and_compare_records(csv_eng_file, expected_num_records=262, connection=connection)
+
+    def test_insert_jp_quest_data_to_real_db(self):
+        connection = connect_to_db()
+        assert connection is not None
+        assert isinstance(connection, psycopg2.extensions.connection)
+
+        project_root = Path(__file__).resolve().parent.parent
+        base_dir = project_root / 'rsrc' / 'csv'
+        csv_eng_file = str(base_dir / 'jp' / 'quest' / '000' / 'ClsArc000_00021.csv')
+
+        verify_and_compare_records(csv_eng_file, expected_num_records=83, connection=connection)
+
+        # assert that has jap text.
+        connection = connect_to_db()
+        assert_table_data_has_japanese_text("ClsArc000_00021", connection)
+
+    def test_insert_jp_cutscene_data_to_real_db(self):
+        connection = connect_to_db()
+        assert connection is not None
+        assert isinstance(connection, psycopg2.extensions.connection)
+
+        project_root = Path(__file__).resolve().parent.parent
+        base_dir = project_root / 'rsrc' / 'csv'
+        csv_eng_file = str(base_dir / 'jp' / 'cut_scene' / '022' / 'VoiceMan_02200.csv')
+
+        verify_and_compare_records(csv_eng_file, expected_num_records=262, connection=connection)
+        # assert that has jap text.
+        connection = connect_to_db()
+        assert_table_data_has_japanese_text("VoiceMan_02200", connection)
+
+    def test_insert_GaiUsd501_00043(self):
+        connection = connect_to_db()
+        assert connection is not None
+        assert isinstance(connection, psycopg2.extensions.connection)
+
+        project_root = Path(__file__).resolve().parent.parent
+        base_dir = project_root / 'rsrc' / 'csv'
+        csv_eng_file = str(base_dir / 'eng' / 'quest' / '000' / 'GaiUsd501_00043.csv')
+        verify_and_compare_records(csv_eng_file, expected_num_records=179, connection=connection)
+
+        #do jp process, where err occur with VarChar(225)
+        connection = connect_to_db()
+        assert connection is not None
+        assert isinstance(connection, psycopg2.extensions.connection)
+        csv_jp_file = str(base_dir / 'jp' / 'quest' / '000' / 'GaiUsd501_00043.csv')
+
+        table_name = os.path.splitext(os.path.basename(str(csv_jp_file)))[0]
+        csvdf = pd.read_csv(csv_jp_file)
+        insert_data_from_df_with_japanese(csvdf, table_name, connection)
+        cursor = connection.cursor()
+
 
     @staticmethod
     def run_all_tests():

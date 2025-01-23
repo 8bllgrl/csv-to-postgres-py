@@ -64,8 +64,18 @@ def process_csv_files():
 
     conn.close()
 
+import time
+
 if __name__ == "__main__":
     base_dir = r'C:\Users\sbelknap\PycharmProjects\dialogdbconn\rsrc\csv'
     Config.initialize_language_base_directories(base_dir)
 
+    start_time = time.time()
+
+    # Main method.
     process_csv_files()
+    # # #
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time:.2f} seconds")
