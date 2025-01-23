@@ -81,39 +81,7 @@ def verify_and_compare_records(csv_file: str, expected_num_records: int, connect
     print(f"All records match between CSV and database for table '{table_name}'.")
 
 
-class FakeTestDatabase:
-    def __init__(self, connection):
-        self.connection = connection
-
-    def insert_data(self, table, data):
-        cursor = self.connection.cursor()
-        query = f"INSERT INTO {table} (name, age) VALUES (%s, %s)"
-        cursor.execute(query, (data['name'], data['age']))
-        self.connection.commit()
-
-
 class TestDatabase(unittest.TestCase):
-
-    @patch('psycopg2.connect')
-    @patch.dict('os.environ', {
-        'DB_NAME': 'test_db',
-        'DB_USER': 'test_user',
-        'DB_PASSWORD': 'test_password',
-        'DB_HOST': 'localhost',
-        'DB_PORT': '5432'
-    })
-    def test_connect_to__mock_db_success(self, mock_connect):
-        mock_connection = MagicMock()
-        mock_connect.return_value = mock_connection
-        connection = connect_to_db()
-        mock_connect.assert_called_once_with(
-            dbname='test_db',
-            user='test_user',
-            password='test_password',
-            host='localhost',
-            port='5432'
-        )
-        self.assertEqual(connection, mock_connection)
 
     def test_real_connection_to_db_integration(self):
         connection = connect_to_db()
@@ -124,19 +92,6 @@ class TestDatabase(unittest.TestCase):
             if connection:
                 connection.close()
 
-    def test_fake_insert_data(self):
-        mock_connection = MagicMock()
-        mock_cursor = MagicMock()
-        mock_connection.cursor.return_value = mock_cursor
-        db = FakeTestDatabase(mock_connection)
-        data = {'name': 'Alice', 'age': 30}
-        table = 'users'
-        db.insert_data(table, data)
-        mock_cursor.execute.assert_called_with(
-            f"INSERT INTO {table} (name, age) VALUES (%s, %s)",
-            ('Alice', 30)
-        )
-        mock_connection.commit.assert_called_once()
 
     def test_insert_eng_data_from_csv(self):
         project_root = Path(__file__).resolve().parent.parent
